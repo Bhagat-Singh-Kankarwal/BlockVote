@@ -71,6 +71,37 @@ pm2 start src/server.js --name "fabric-api"
 pm2 save
 check_status "Backend server started with PM2"
 
+# Step 6: Start blockchain explorer
+step "Starting blockchain explorer..."
+cd $BASE_DIR/explorer
+cat > .env << 'EOL'
+PORT=8080
+EXPLORER_CONFIG_FILE_PATH=./examples/net1/config.json
+EXPLORER_PROFILE_DIR_PATH=./examples/net1/connection-profile
+FABRIC_CRYPTO_PATH=/fabric-path/fabric-samples/test-network/organizations
+EOL
+
+cp -r ../backend/test-network/organizations/ .
+
+# Rename the keystore file to priv_sk for Org1 Admin
+ORG1_KEYSTORE_DIR="./organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp/keystore"
+if [ -d "$ORG1_KEYSTORE_DIR" ]; then
+    # Find the key file (should be only one) and rename it to priv_sk
+    KEYFILE=$(ls $ORG1_KEYSTORE_DIR/* | head -1)
+    if [ -n "$KEYFILE" ]; then
+        mv "$KEYFILE" "$ORG1_KEYSTORE_DIR/priv_sk"
+        check_status "Renamed Org1 Admin keystore file to priv_sk"
+    else
+        echo -e "${YELLOW}Warning${NC}: No keystore file found for Org1 Admin"
+    fi
+else
+    echo -e "${YELLOW}Warning${NC}: Keystore directory not found for Org1 Admin"
+fi
+
+# Start the explorer
+docker-compose up -d
+check_status "Blockchain explorer started"
+
 echo
 echo -e "${GREEN}=====================================================${NC}"
 echo -e "${GREEN}Blockchain voting system started successfully!${NC}"

@@ -26,4 +26,9 @@ docker-compose down -v
 cd $NETWORK_DIR
 ./network.sh down
 
+# Stop explorer
+cd $BASE_DIR/explorer
+docker-compose down -v
+rm -rf ./organizations
+
 echo "All services have been stopped."
