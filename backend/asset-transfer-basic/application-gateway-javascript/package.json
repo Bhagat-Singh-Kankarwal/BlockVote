@@ -1,0 +1,34 @@
+{
+    "name": "voting-application-javascript",
+    "version": "1.0.0",
+    "description": "Voting Application implemented in JavaScript using fabric-gateway",
+    "engines": {
+        "node": ">=18"
+    },
+    "scripts": {
+        "lint": "eslint src",
+        "pretest": "npm run lint",
+        "start": "node src/server.js"
+    },
+    "engineStrict": true,
+    "author": "Hyperledger",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "@grpc/grpc-js": "^1.12.2",
+        "@hyperledger/fabric-gateway": "^1.7.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.7",
+        "express": "^4.18.2",
+        "fabric-ca-client": "^2.2.20",
+        "fabric-network": "^2.2.20",
+        "helmet": "^8.1.0",
+        "jsonwebtoken": "^9.0.2",
+        "mind-paillier-voting-sdk": "^1.0.2",
+        "supertokens-node": "^22.0.1"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.5.0",
+        "eslint": "^9.5.0",
+        "globals": "^15.6.0"
+    }
+}

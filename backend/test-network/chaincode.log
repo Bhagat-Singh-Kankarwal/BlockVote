@@ -1,0 +1,155 @@
+[0;34mUsing docker and docker-compose[0m
+[0;34mdeploying chaincode on channel 'mychannel'[0m
+executing with the following
+- CHANNEL_NAME: [0;32mmychannel[0m
+- CC_NAME: [0;32mbasic[0m
+- CC_SRC_PATH: [0;32m../asset-transfer-basic/chaincode-typescript/[0m
+- CC_SRC_LANGUAGE: [0;32mtypescript[0m
+- CC_VERSION: [0;32m1.0[0m
+- CC_SEQUENCE: [0;32mauto[0m
+- CC_END_POLICY: [0;32mNA[0m
+- CC_COLL_CONFIG: [0;32mNA[0m
+- CC_INIT_FCN: [0;32mNA[0m
+- DELAY: [0;32m3[0m
+- MAX_RETRY: [0;32m5[0m
+- VERBOSE: [0;32mfalse[0m
+executing with the following
+- CC_NAME: [0;32mbasic[0m
+- CC_SRC_PATH: [0;32m../asset-transfer-basic/chaincode-typescript/[0m
+- CC_SRC_LANGUAGE: [0;32mtypescript[0m
+- CC_VERSION: [0;32m1.0[0m
+[0;34mCompiling TypeScript code into JavaScript...[0m
+~/Documents/Fabric-Supertoken/fabric-samples/asset-transfer-basic/chaincode-typescript ~/Documents/Fabric-Supertoken/fabric-samples/test-network
+
+up to date, audited 205 packages in 634ms
+
+40 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+> asset-transfer-basic@1.0.0 build
+> tsc
+
+~/Documents/Fabric-Supertoken/fabric-samples/test-network
+[0;32mFinished compiling TypeScript code into JavaScript[0m
++ '[' false = true ']'
++ peer lifecycle chaincode package basic.tar.gz --path ../asset-transfer-basic/chaincode-typescript/ --lang node --label basic_1.0
++ res=0
+[0;32mChaincode is packaged[0m
+[0;34mInstalling chaincode on peer0.org1...[0m
+[0;34mUsing organization 1[0m
++ peer lifecycle chaincode queryinstalled --output json
++ jq -r 'try (.installed_chaincodes[].package_id)'
++ grep '^basic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c$'
++ test 1 -ne 0
++ peer lifecycle chaincode install basic.tar.gz
++ res=0
+[34m2025-04-14 21:41:06.393 IST 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nJbasic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c\022\tbasic_1.0" > 
+[34m2025-04-14 21:41:06.393 IST 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: basic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c
+[0;32mChaincode is installed on peer0.org1[0m
+[0;34mInstall chaincode on peer0.org2...[0m
+[0;34mUsing organization 2[0m
++ peer lifecycle chaincode queryinstalled --output json
++ jq -r 'try (.installed_chaincodes[].package_id)'
++ grep '^basic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c$'
++ test 1 -ne 0
++ peer lifecycle chaincode install basic.tar.gz
++ res=0
+[34m2025-04-14 21:41:16.363 IST 0001 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Installed remotely: response:<status:200 payload:"\nJbasic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c\022\tbasic_1.0" > 
+[34m2025-04-14 21:41:16.363 IST 0002 INFO[0m [cli.lifecycle.chaincode] [34;1msubmitInstallProposal[0m -> Chaincode code package identifier: basic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c
+[0;32mChaincode is installed on peer0.org2[0m
+++ peer lifecycle chaincode querycommitted --channelID mychannel --name basic
+++ sed -n '/Version:/{s/.*Sequence: //; s/, Endorsement Plugin:.*$//; p;}'
+Error: query failed with status: 404 - namespace basic is not defined
++ COMMITTED_CC_SEQUENCE=
++ res=0
+[0;34mUsing organization 1[0m
++ peer lifecycle chaincode queryinstalled --output json
++ jq -r 'try (.installed_chaincodes[].package_id)'
++ grep '^basic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c$'
++ res=0
+basic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c
+[0;32mQuery installed successful on peer0.org1 on channel[0m
+[0;34mUsing organization 1[0m
++ peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile /home/magnawell/Documents/Fabric-Supertoken/fabric-samples/test-network/organizations/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem --channelID mychannel --name basic --version 1.0 --package-id basic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c --sequence 1
++ res=0
+[34m2025-04-14 21:41:18.824 IST 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [9e15d1b9e27e597b08c8b11a0a7881c3ccb5189d4dd668941c723e504673db81] committed with status (VALID) at localhost:7051
+[0;32mChaincode definition approved on peer0.org1 on channel 'mychannel'[0m
+[0;34mUsing organization 1[0m
+[0;34mChecking the commit readiness of the chaincode definition on peer0.org1 on channel 'mychannel'...[0m
+[0;34mAttempting to check the commit readiness of the chaincode definition on peer0.org1, Retry after 3 seconds.[0m
++ peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 1.0 --sequence 1 --output json
++ res=0
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": false
+	}
+}
+[0;34mChecking the commit readiness of the chaincode definition successful on peer0.org1 on channel 'mychannel'[0m
+[0;34mUsing organization 2[0m
+[0;34mChecking the commit readiness of the chaincode definition on peer0.org2 on channel 'mychannel'...[0m
+[0;34mAttempting to check the commit readiness of the chaincode definition on peer0.org2, Retry after 3 seconds.[0m
++ peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 1.0 --sequence 1 --output json
++ res=0
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": false
+	}
+}
+[0;34mChecking the commit readiness of the chaincode definition successful on peer0.org2 on channel 'mychannel'[0m
+[0;34mUsing organization 2[0m
++ peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile /home/magnawell/Documents/Fabric-Supertoken/fabric-samples/test-network/organizations/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem --channelID mychannel --name basic --version 1.0 --package-id basic_1.0:8b559e79416259d7f845e8a98d1c04e579e33cfbf5fbb180ef01df03dd0f455c --sequence 1
++ res=0
+[34m2025-04-14 21:41:27.328 IST 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [43bafd2a653e86bbae15dd709234fe408e98265843ecbe67cdf27c3b4c627246] committed with status (VALID) at localhost:9051
+[0;32mChaincode definition approved on peer0.org2 on channel 'mychannel'[0m
+[0;34mUsing organization 1[0m
+[0;34mChecking the commit readiness of the chaincode definition on peer0.org1 on channel 'mychannel'...[0m
+[0;34mAttempting to check the commit readiness of the chaincode definition on peer0.org1, Retry after 3 seconds.[0m
++ peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 1.0 --sequence 1 --output json
++ res=0
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": true
+	}
+}
+[0;34mChecking the commit readiness of the chaincode definition successful on peer0.org1 on channel 'mychannel'[0m
+[0;34mUsing organization 2[0m
+[0;34mChecking the commit readiness of the chaincode definition on peer0.org2 on channel 'mychannel'...[0m
+[0;34mAttempting to check the commit readiness of the chaincode definition on peer0.org2, Retry after 3 seconds.[0m
++ peer lifecycle chaincode checkcommitreadiness --channelID mychannel --name basic --version 1.0 --sequence 1 --output json
++ res=0
+{
+	"approvals": {
+		"Org1MSP": true,
+		"Org2MSP": true
+	}
+}
+[0;34mChecking the commit readiness of the chaincode definition successful on peer0.org2 on channel 'mychannel'[0m
+[0;34mUsing organization 1[0m
+[0;34mUsing organization 2[0m
++ peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile /home/magnawell/Documents/Fabric-Supertoken/fabric-samples/test-network/organizations/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem --channelID mychannel --name basic --peerAddresses localhost:7051 --tlsRootCertFiles /home/magnawell/Documents/Fabric-Supertoken/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/tlsca/tlsca.org1.example.com-cert.pem --peerAddresses localhost:9051 --tlsRootCertFiles /home/magnawell/Documents/Fabric-Supertoken/fabric-samples/test-network/organizations/peerOrganizations/org2.example.com/tlsca/tlsca.org2.example.com-cert.pem --version 1.0 --sequence 1
++ res=0
+[34m2025-04-14 21:41:36.487 IST 0001 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [01a16d45ca760abc9bd351d822cdaf1ab1cdcca37ffee82e2bd493cc69641ec7] committed with status (VALID) at localhost:9051
+[34m2025-04-14 21:41:36.526 IST 0002 INFO[0m [chaincodeCmd] [34;1mClientWait[0m -> txid [01a16d45ca760abc9bd351d822cdaf1ab1cdcca37ffee82e2bd493cc69641ec7] committed with status (VALID) at localhost:7051
+[0;32mChaincode definition committed on channel 'mychannel'[0m
+[0;34mUsing organization 1[0m
+[0;34mQuerying chaincode definition on peer0.org1 on channel 'mychannel'...[0m
+[0;34mAttempting to Query committed status on peer0.org1, Retry after 3 seconds.[0m
++ peer lifecycle chaincode querycommitted --channelID mychannel --name basic
++ res=0
+Committed chaincode definition for chaincode 'basic' on channel 'mychannel':
+Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]
+[0;32mQuery chaincode definition successful on peer0.org1 on channel 'mychannel'[0m
+[0;34mUsing organization 2[0m
+[0;34mQuerying chaincode definition on peer0.org2 on channel 'mychannel'...[0m
+[0;34mAttempting to Query committed status on peer0.org2, Retry after 3 seconds.[0m
++ peer lifecycle chaincode querycommitted --channelID mychannel --name basic
++ res=0
+Committed chaincode definition for chaincode 'basic' on channel 'mychannel':
+Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]
+[0;32mQuery chaincode definition successful on peer0.org2 on channel 'mychannel'[0m
+[0;34mChaincode initialization is not required[0m
