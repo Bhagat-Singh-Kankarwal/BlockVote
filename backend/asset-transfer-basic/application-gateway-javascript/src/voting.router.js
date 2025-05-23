@@ -1,6 +1,12 @@
 const { Connection } = require('./connection');
 const { TextDecoder } = require('node:util');
 
+const fs = require('fs').promises;
+const path = require('path');
+
+// Read the key file
+const keyFilePath = path.join(__dirname, '../demo.key');
+
 // Import FHE library
 const {
     Voter,
@@ -172,10 +178,15 @@ class VotingRouter {
                         });
                     }
 
-                    // If status is RESULTS_DECLARED, get results
+                    const keyData = await fs.readFile(keyFilePath, 'utf8');
+                    const keys = JSON.parse(keyData);
+                    const serializedPrivateKey = keys.privateKey;
+
+                    // If status is RESULTS_DECLARED, get results with private key
                     const resultBytes = await contract.evaluateTransaction(
                         'GetElectionResults',
-                        req.params.electionID
+                        req.params.electionID,
+                        serializedPrivateKey
                     );
 
                     const resultJson = utf8Decoder.decode(resultBytes);
@@ -191,23 +202,6 @@ class VotingRouter {
                 }
             });
 
-        // Get public key endpoint
-        app.route('/elections/public-key')
-            .get(async (req, res) => {
-                try {
-                    const contract = await this.connection.getAdminConnection();
-                    const publicKeyBytes = await contract.evaluateTransaction('GetPublicKey');
-                    const publicKey = utf8Decoder.decode(publicKeyBytes);
-
-                    res.status(200).send({ publicKey });
-                } catch (error) {
-                    console.error('Error getting public key:', error);
-                    res.status(500).send({
-                        error: 'Failed to get public key',
-                        details: error.message
-                    });
-                }
-            });
 
         // =====================================================================
         // USER ROUTES (REQUIRE AUTHENTICATION)
@@ -481,6 +475,52 @@ class VotingRouter {
                 }
             });
 
+        app.route('/elections/:electionID/verify-my-ballot')
+            .post(verifySession(), async (req, res) => {
+                const voterID = req.session.getUserId();
+                try {
+                    const { credentials } = req.body;
+
+                    if (!credentials) {
+                        return res.status(400).send({
+                            error: 'Missing user credentials',
+                            details: 'Please provide your Fabric identity credentials'
+                        });
+                    }
+
+                    const contract = await this.connection.getUserConnection(voterID, credentials);
+                    if (!contract) {
+                        return res.status(400).send({
+                            error: 'Failed to create Fabric connection',
+                            details: 'Could not establish connection with provided credentials'
+                        });
+                    }
+
+                    const resultBytes = await contract.evaluateTransaction(
+                        'VerifyBallot',
+                        req.params.electionID,
+                        voterID
+                    );
+
+                    const result = JSON.parse(utf8Decoder.decode(resultBytes));
+                    res.status(200).send({
+                        isValid: result,
+                        message: result ? 'Your ballot verification passed' : 'Ballot verification failed'
+                    });
+                } catch (error) {
+                    console.error('Error verifying user ballot:', error);
+                    res.status(500).send({
+                        error: 'Verification failed',
+                        details: error.message
+                    });
+                } finally {
+                    if (voterID && this.connection.connectionPool &&
+                        this.connection.connectionPool[voterID]) {
+                        this.connection.connectionPool[voterID].timestamp = Date.now();
+                    }
+                }
+            });
+
         // =====================================================================
         // ADMIN ROUTES (REQUIRE ADMIN AUTHENTICATION)
         // =====================================================================
@@ -609,9 +649,15 @@ class VotingRouter {
             .get(verifyAdminToken(), async (req, res) => {
                 try {
                     const contract = await this.connection.getAdminConnection();
+
+                    const keyData = await fs.readFile(keyFilePath, 'utf8');
+                    const keys = JSON.parse(keyData);
+                    const serializedPrivateKey = keys.privateKey;
+
                     const resultBytes = await contract.evaluateTransaction(
                         'GetElectionResults',
-                        req.params.electionID
+                        req.params.electionID,
+                        serializedPrivateKey
                     );
 
                     const resultJson = utf8Decoder.decode(resultBytes);
@@ -681,20 +727,14 @@ class VotingRouter {
         app.route('/admin/initialize-encryption')
             .post(verifyAdminToken(), async (req, res) => {
                 try {
-                    const fs = require('fs').promises;
-                    const path = require('path');
 
-                    // Read the key file
-                    const keyFilePath = path.join(__dirname, '../demo.key');
-                    console.log(`Reading pre-generated keys from: ${keyFilePath}`);
                     const keyData = await fs.readFile(keyFilePath, 'utf8');
                     const keys = JSON.parse(keyData);
 
                     // Extract serialized keys
                     const serializedPublicKey = keys.publicKey;
-                    const serializedPrivateKey = keys.privateKey;
 
-                    console.log('Using pre-generated encryption keys from demo.key');
+                    console.log('Using pre-generated public key from demo.key');
 
 
                     // Get admin connection
@@ -704,7 +744,6 @@ class VotingRouter {
                     const resultBytes = await contract.submitTransaction(
                         'InitializeEncryption',
                         serializedPublicKey,
-                        serializedPrivateKey
                     );
 
                     // Decode and check the response

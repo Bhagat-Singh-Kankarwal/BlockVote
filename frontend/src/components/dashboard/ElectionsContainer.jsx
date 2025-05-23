@@ -14,7 +14,8 @@ const ElectionsContainer = ({
   setSelectedElection,
   setShowVotingModal,
   setSelectedCompletedElection,
-  setShowResultsModal
+  setShowResultsModal,
+  userCredentials,
 }) => {
   return (
     <motion.div 
@@ -55,6 +56,7 @@ const ElectionsContainer = ({
               userVotes={userVotes}
               userElections={userElections}
               copyToClipboard={copyToClipboard}
+              userCredentials={userCredentials}
             />
           </motion.div>
 

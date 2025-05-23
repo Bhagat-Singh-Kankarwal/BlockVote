@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FaChartPie, FaCalendarAlt, FaVoteYea, FaCheck, FaUserCheck, FaSpinner } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import api from '../../utils/api';
@@ -7,13 +7,23 @@ function ElectionOverview({ elections }) {
   const [resultData, setResultData] = useState({});
   const [loadingResults, setLoadingResults] = useState({});
 
-  const activeElections = elections.filter(e => e.status === 'ACTIVE');
-  const completedElections = elections.filter(e => e.status === 'ENDED' || e.status === 'RESULTS_DECLARED');
-  const pendingElections = elections.filter(e => e.status === 'CREATED' || e.status === 'PAUSED');
+  const activeElections = useMemo(() => 
+    elections.filter(e => e.status === 'ACTIVE'), [elections]
+  );
+  
+  const completedElections = useMemo(() => 
+    elections.filter(e => e.status === 'ENDED' || e.status === 'RESULTS_DECLARED'), [elections]
+  );
+  
+  const pendingElections = useMemo(() => 
+    elections.filter(e => e.status === 'CREATED' || e.status === 'PAUSED'), [elections]
+  );
 
   // Calculate total registered voters across all elections
-  const totalRegisteredVoters = elections.reduce((total, election) => 
-    total + (election.registeredVoters?.length || 0), 0);
+  const totalRegisteredVoters = useMemo(() => 
+    elections.reduce((total, election) => 
+      total + (election.registeredVoters?.length || 0), 0), [elections]
+  );
 
   // Fetch results for completed elections
   useEffect(() => {
@@ -21,7 +31,7 @@ function ElectionOverview({ elections }) {
       if (!election || !election.electionID) return;
       if (election.status !== 'ENDED' && election.status !== 'RESULTS_DECLARED') return;
       
-      // Skip if we already have results for this election
+      // Skip if results already exists
       if (resultData[election.electionID]) return;
       
       setLoadingResults(prev => ({ ...prev, [election.electionID]: true }));
@@ -42,14 +52,14 @@ function ElectionOverview({ elections }) {
     // Fetch results for the first 2 completed elections
     const recentCompletedElections = completedElections.slice(0, 2);
     recentCompletedElections.forEach(fetchResultsForElection);
-  }, [completedElections]);
+  }, [completedElections, resultData]); // Add resultData to dependencies
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', { 
-      month: 'long', 
-      day: 'numeric', 
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
       year: 'numeric'
     }).format(date);
   };
@@ -67,9 +77,9 @@ function ElectionOverview({ elections }) {
         </div>
         <h2 className="text-2xl font-semibold font-quicksand text-gray-900 ml-3">Elections Overview</h2>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, delay: 0.1 }}
@@ -87,8 +97,8 @@ function ElectionOverview({ elections }) {
             <span>Voters: {totalRegisteredVoters}</span>
           </div>
         </motion.div>
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, delay: 0.2 }}
@@ -108,8 +118,8 @@ function ElectionOverview({ elections }) {
             <span>Pending: {pendingElections.length}</span>
           </div>
         </motion.div>
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, delay: 0.3 }}
@@ -130,7 +140,7 @@ function ElectionOverview({ elections }) {
           </div>
         </motion.div>
       </div>
-      
+
       {/* Recent Results Section */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -141,7 +151,7 @@ function ElectionOverview({ elections }) {
           <h3 className="text-lg font-medium text-gray-800 mb-4 font-sans flex items-center">
             Recent Results
           </h3>
-          
+
           {completedElections.length === 0 ? (
             <div className="text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
               <p className="text-gray-500">No completed elections yet.</p>
@@ -152,26 +162,26 @@ function ElectionOverview({ elections }) {
               {completedElections.slice(0, 2).map((election) => {
                 const isLoading = loadingResults[election.electionID];
                 const results = resultData[election.electionID] || [];
-                
+
                 // Calculate total votes from results
                 const totalVotes = results.reduce((sum, candidate) => sum + (candidate.voteCount || 0), 0);
-                
+
                 // Find winner (if there is one)
                 let winnerMessage = 'No votes have been cast';
                 let winner = null;
                 let tiedCandidates = [];
-                
+
                 if (totalVotes > 0) {
                   // Sort by vote count (highest first)
                   const sortedResults = [...results].sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
-                  
+
                   // Check if we have a clear winner or a tie
                   if (sortedResults.length > 0) {
                     winner = sortedResults[0];
-                    
+
                     // Check for tie (if there are multiple candidates with the same highest vote count)
                     tiedCandidates = sortedResults.filter(c => c.voteCount === winner.voteCount);
-                    
+
                     if (tiedCandidates.length > 1) {
                       winnerMessage = `Tie between ${tiedCandidates.map(c => c.name).join(', ')}`;
                     } else {
@@ -179,15 +189,15 @@ function ElectionOverview({ elections }) {
                     }
                   }
                 }
-                
+
                 // Calculate participation percentage if voter data is available
                 let participationRate = null;
                 if (election.registeredVoters && election.registeredVoters.length > 0) {
                   participationRate = Math.round((totalVotes / election.registeredVoters.length) * 100);
                 }
-                
+
                 return (
-                  <motion.div 
+                  <motion.div
                     key={election.electionID}
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -198,11 +208,11 @@ function ElectionOverview({ elections }) {
                       <h4 className="font-medium text-gray-900">{election.name}</h4>
                       <span className="text-xs md:text-sm text-gray-500">Ended: {formatDate(election.endDate)}</span>
                     </div>
-                    
+
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                       {election.description}
                     </p>
-                    
+
                     {isLoading ? (
                       <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 flex items-center justify-center">
                         <FaSpinner className="animate-spin text-secondary-500 mr-2" />
@@ -223,15 +233,15 @@ function ElectionOverview({ elections }) {
                                 {winnerMessage}
                               </span>
                             </div>
-                            
-                            
+
+
                             {participationRate !== null && (
                               <div className="mt-1 text-sm text-gray-500 flex items-center">
                                 {/* <FaUserCheck className="text-secondary-500 mr-1" size={12} /> */}
                                 <span>Participation rate: {participationRate}%</span>
                               </div>
                             )}
-                            
+
                           </>
                         ) : (
                           <div className="flex items-center">
@@ -244,7 +254,7 @@ function ElectionOverview({ elections }) {
                   </motion.div>
                 );
               })}
-              
+
               {completedElections.length > 2 && (
                 <div className="text-center text-sm text-gray-500 mt-2">
                   + {completedElections.length - 2} more completed election{completedElections.length - 2 > 1 ? 's' : ''}

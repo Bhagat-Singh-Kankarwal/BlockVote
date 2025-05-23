@@ -66,8 +66,8 @@ function Home() {
                     transition={{ duration: 0.5, delay: index * 0.1 }}
                   >
                     <div className='px-2 md:px-0 md:grid md:grid-cols-7 w-full'>
-                      {/* On mobile, always show content in a vertical layout below the icon */}
-                      <div className='col-span-3 hidden md:block ${index % 2 === 0 ? "text-right" : ""}'>
+
+                      <div className={`col-span-3 hidden md:block ${index % 2 === 0 ? "text-right" : ""}`}>
                         {index % 2 === 0 && (
                           <div>
                             <h3 className="text-xl font-semibold mb-2 text-gray-900">{step.title}</h3>
@@ -82,7 +82,7 @@ function Home() {
                         </div>
                       </div>
 
-                      <div className='col-span-3 hidden md:block ${index % 2 === 1 ? "text-left" : ""}'>
+                      <div className={`col-span-3 hidden md:block ${index % 2 === 1 ? "text-left" : ""}`}>
                         {index % 2 === 1 && (
                           <div>
                             <h3 className="text-xl font-semibold mb-2 text-gray-900">{step.title}</h3>
@@ -96,29 +96,6 @@ function Home() {
                         <h3 className="text-xl font-semibold mb-2 text-gray-900">{step.title}</h3>
                         <p className="text-gray-600">{step.description}</p>
                       </div>
-                      {/* <div className={`col-span-3 md:block ${index % 2 === 0 ? 'text-right' : ''}`}>
-                        {index % 2 === 0 && (
-                          <div>
-                            <h3 className="text-xl font-semibold mb-2 text-gray-900">{step.title}</h3>
-                            <p className="text-gray-600">{step.description}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className='col-span-1 flex justify-center items-center'>
-                        <div className={`bg-primary-600 text-white h-12 w-12 rounded-full flex items-center justify-center shadow-md z-10`}>
-                          {step.icon}
-                        </div>
-                      </div>
-
-                      <div className={`col-span-3 md:block ${index % 2 === 1 ? 'text-left' : ''}`}>
-                        {index % 2 === 1 && (
-                          <div>
-                            <h3 className="text-xl font-semibold mb-2 text-gray-900">{step.title}</h3>
-                            <p className="text-gray-600">{step.description}</p>
-                          </div>
-                        )}
-                      </div> */}
                     </div>
                   </motion.div>
                 ))}

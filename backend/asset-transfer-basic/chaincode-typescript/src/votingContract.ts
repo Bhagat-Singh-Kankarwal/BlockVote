@@ -79,12 +79,10 @@ export class PrivateVote {
 export class EncryptionKeys {
     public docType: string;
     public publicKey: string;
-    public privateKey: string;
 
     constructor(publicKey: string, privateKey: string) {
         this.docType = 'encryptionkeys';
         this.publicKey = publicKey;
-        this.privateKey = privateKey;
     }
 }
 
@@ -199,7 +197,7 @@ export class VotingContract extends Contract {
     }
 
     @Transaction()
-    public async InitializeEncryption(ctx: Context, publicKeyStr: string, privateKeyStr: string): Promise<string> {
+    public async InitializeEncryption(ctx: Context, publicKeyStr: string): Promise<string> {
         // Check if keys already exist
         const keysJSON = await ctx.stub.getState('ENCRYPTION_KEYS');
         if (keysJSON && keysJSON.length > 0) {
@@ -207,7 +205,7 @@ export class VotingContract extends Contract {
         }
 
         // Store the pre-generated keys directly - no key generation in chaincode
-        const keys = new EncryptionKeys(publicKeyStr, privateKeyStr);
+        const keys = new EncryptionKeys(publicKeyStr);
         await ctx.stub.putState('ENCRYPTION_KEYS', Buffer.from(stringify(keys)));
 
         return 'Encryption system initialized successfully with pre-generated keys';
@@ -321,86 +319,85 @@ export class VotingContract extends Contract {
     // Tally votes homomorphically
     @Transaction(false)
     @Returns('string')
-    public async GetElectionResults(ctx: Context, electionID: string): Promise<string> {
-        const electionKey = this.getElectionKey(electionID);
-        const electionJSON = await ctx.stub.getState(electionKey);
-        if (!electionJSON || electionJSON.length === 0) {
-            throw new Error(`Election ${electionID} does not exist`);
-        }
+    public async GetElectionResults(ctx: Context, electionID: string, privateKeyStr: string): Promise<string> {
+    const electionKey = this.getElectionKey(electionID);
+    const electionJSON = await ctx.stub.getState(electionKey);
+    if (!electionJSON || electionJSON.length === 0) {
+        throw new Error(`Election ${electionID} does not exist`);
+    }
 
-        const election = JSON.parse(electionJSON.toString()) as Election;
+    const election = JSON.parse(electionJSON.toString()) as Election;
 
-        // Check if election is ended
-        if (election.status !== ElectionStatus.ENDED && election.status !== ElectionStatus.RESULTS_DECLARED) {
-            throw new Error(`Election ${electionID} is still active or results are not ready`);
-        }
+    // Check if election is ended
+    if (election.status !== ElectionStatus.ENDED && election.status !== ElectionStatus.RESULTS_DECLARED) {
+        throw new Error(`Election ${electionID} is still active or results are not ready`);
+    }
 
-        // Get all votes for this election
-        const iterator = ctx.stub.getStateByRange(`VOTE_${electionID}_`, `VOTE_${electionID}_\uffff`);
+    // Get all votes for this election
+    const iterator = ctx.stub.getStateByRange(`VOTE_${electionID}_`, `VOTE_${electionID}_\uffff`);
 
-        // Get encryption keys
-        const keysJSON = await ctx.stub.getState('ENCRYPTION_KEYS');
-        if (!keysJSON || keysJSON.length === 0) {
-            throw new Error('Encryption system not initialized');
-        }
+    // Get public key from ledger
+    const keysJSON = await ctx.stub.getState('ENCRYPTION_KEYS');
+    if (!keysJSON || keysJSON.length === 0) {
+        throw new Error('Encryption system not initialized');
+    }
 
-        const keys = JSON.parse(keysJSON.toString()) as EncryptionKeys;
+    const keys = JSON.parse(keysJSON.toString()) as EncryptionKeys;
 
-        // Parse public and private keys
-        const publicKey = deserializePublicKey(keys.publicKey);
-        const privateKey = deserializePrivateKey(keys.privateKey, publicKey);
+    // Parse public key from ledger and private key from parameter
+    const publicKey = deserializePublicKey(keys.publicKey);
+    const privateKey = deserializePrivateKey(privateKeyStr, publicKey);
 
-        // Prepare for homomorphic addition
-        const tally: bigint[] = [];
+    // Prepare for homomorphic addition
+    const tally: bigint[] = [];
 
-        // Initialize tally array
-        for (let i = 0; i < election.candidates.length; i++) {
-            tally.push(publicKey.encrypt(BigInt(0)));
-        }
+    // Initialize tally array
+    for (let i = 0; i < election.candidates.length; i++) {
+        tally.push(publicKey.encrypt(BigInt(0)));
+    }
 
-        // Add up all the encrypted votes
-        const votes = [];
-        for await (const result of iterator) {
-            if (result.value && result.value.toString()) {
-                const vote = JSON.parse(result.value.toString()) as PrivateVote;
-                votes.push(vote);
+    // Add up all the encrypted votes
+    const votes = [];
+    for await (const result of iterator) {
+        if (result.value && result.value.toString()) {
+            const vote = JSON.parse(result.value.toString()) as PrivateVote;
+            votes.push(vote);
 
-                // Add each encrypted ballot value to tally
-                for (let i = 0; i < vote.encryptedBallot.length; i++) {
-                    const encryptedValue = BigInt(vote.encryptedBallot[i]);
-                    if (i < tally.length) {
-                        tally[i] = publicKey.addition(tally[i], encryptedValue);
-                    }
+            // Add each encrypted ballot value to tally
+            for (let i = 0; i < vote.encryptedBallot.length; i++) {
+                const encryptedValue = BigInt(vote.encryptedBallot[i]);
+                if (i < tally.length) {
+                    tally[i] = publicKey.addition(tally[i], encryptedValue);
                 }
             }
         }
-
-        // Decrypt the final tally
-        const decryptedResults = tally.map(encryptedSum => {
-            const decrypted = privateKey.decrypt(encryptedSum);
-            return Number(decrypted);
-        });
-
-        // Map to candidate results
-        const finalResults = election.candidates.map((candidate, index) => ({
-            candidateID: candidate.candidateID,
-            name: candidate.name,
-            party: candidate.party,
-            voteCount: decryptedResults[index]
-        }));
-
-        // Sort by vote count (descending)
-        finalResults.sort((a, b) => b.voteCount - a.voteCount);
-
-        // Update election with results if not already set
-        if (election.status === ElectionStatus.ENDED) {
-            // election.status = ElectionStatus.RESULTS_DECLARED;
-            election.results = finalResults;
-            await ctx.stub.putState(electionKey, Buffer.from(stringify(election)));
-        }
-
-        return stringify(finalResults);
     }
+
+    // Decrypt the final tally
+    const decryptedResults = tally.map(encryptedSum => {
+        const decrypted = privateKey.decrypt(encryptedSum);
+        return Number(decrypted);
+    });
+
+    // Map to candidate results
+    const finalResults = election.candidates.map((candidate, index) => ({
+        candidateID: candidate.candidateID,
+        name: candidate.name,
+        party: candidate.party,
+        voteCount: decryptedResults[index]
+    }));
+
+    // Sort by vote count (descending)
+    finalResults.sort((a, b) => b.voteCount - a.voteCount);
+
+    // Update election with results if not already set
+    if (election.status === ElectionStatus.ENDED) {
+        election.results = finalResults;
+        await ctx.stub.putState(electionKey, Buffer.from(stringify(election)));
+    }
+
+    return stringify(finalResults);
+}
 
     // Get vote information
     @Transaction(false)

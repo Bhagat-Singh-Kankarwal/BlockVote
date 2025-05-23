@@ -4,7 +4,8 @@ import VoteCard from './VoteCard';
 const UserVotesList = ({
   userVotes,
   userElections,
-  copyToClipboard
+  copyToClipboard,
+  userCredentials,
 }) => {
   const votedElectionIds = Object.keys(userVotes).filter(id => userVotes[id]?.hasVoted);
   const needsScrolling = votedElectionIds.length > 2;
@@ -36,6 +37,7 @@ const UserVotesList = ({
                 vote={vote}
                 copyToClipboard={copyToClipboard}
                 index={index}
+                userCredentials={userCredentials}
               />
             );
           })}

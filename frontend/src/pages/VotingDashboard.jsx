@@ -429,6 +429,7 @@ const VotingDashboard = () => {
               setShowVotingModal={setShowVotingModal}
               setSelectedCompletedElection={setSelectedCompletedElection}
               setShowResultsModal={setShowResultsModal}
+              userCredentials={identityFile}
             />
           )}
         </div>
