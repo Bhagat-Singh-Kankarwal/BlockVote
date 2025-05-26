@@ -28,52 +28,6 @@ function AdminDashboard() {
   const [showResultsModal, setShowResultsModal] = useState(false);
   const navigate = useNavigate();
 
-  // Effect to manage body scroll locking
-  // useEffect(() => {
-  //   // Check if any modal is open
-  //   const isAnyModalOpen = showCreateModal || showResultsModal;
-
-  //   // Add/remove the no-scroll class on the body
-  //   if (isAnyModalOpen) {
-  //     document.body.classList.add('overflow-hidden');
-
-  //     // Store the original scroll position
-  //     document.body.dataset.scrollY = window.scrollY.toString();
-  //     const scrollY = window.scrollY;
-
-  //     // Optional: fix the position to prevent jumping
-  //     document.body.style.position = 'fixed';
-  //     document.body.style.top = `-${scrollY}px`;
-  //     document.body.style.width = '100%';
-  //   } else {
-  //     // Restore body scrolling
-  //     document.body.classList.remove('overflow-hidden');
-
-  //     // Optional: restore the scroll position if it was saved
-  //     if (document.body.style.position === 'fixed') {
-  //       document.body.style.position = '';
-  //       document.body.style.top = '';
-  //       document.body.style.width = '';
-
-  //       // Scroll back to the original position
-  //       window.scrollTo(0, parseInt(document.body.dataset.scrollY || '0', 10));
-  //     }
-  //   }
-
-  //   // Cleanup function
-  //   return () => {
-  //     const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
-  //     document.body.classList.remove('overflow-hidden');
-  //     document.body.style.position = '';
-  //     document.body.style.top = '';
-  //     document.body.style.width = '';
-  //     window.scrollTo({
-  //       top: scrollY,
-  //       behavior: 'instant'
-  //     });
-  //     // document.body.dataset.scrollY = '';
-  //   };
-  // }, [showCreateModal, showResultsModal]);
 
   useEffect(() => {
     // Check if any modal is open

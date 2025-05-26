@@ -24,7 +24,7 @@ const VotingDashboard = () => {
   const [userVotes, setUserVotes] = useState({});
   const [fetchingElections, setFetchingElections] = useState(false);
   const [completedElections, setCompletedElections] = useState([]);
-  
+
   // Modal state
   const [selectedElection, setSelectedElection] = useState(null);
   const [showVotingModal, setShowVotingModal] = useState(false);
@@ -33,13 +33,13 @@ const VotingDashboard = () => {
   const [showResultsModal, setShowResultsModal] = useState(false);
 
 
-  
+
   // Initialize user and check identity
   useEffect(() => {
     if (sessionContext.loading === false && sessionContext.doesSessionExist) {
       getUserId().then(id => {
         setUserId(id);
-        
+
         // Check if identity exists in localStorage first
         const storedIdentity = localStorage.getItem(`blockchain_identity_${id}`);
         if (storedIdentity) {
@@ -63,7 +63,7 @@ const VotingDashboard = () => {
     if (showResultsModal || showVotingModal) {
       // Save the current scroll position
       const scrollY = window.scrollY;
-      
+
       // Add styles to prevent scrolling
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
@@ -76,13 +76,13 @@ const VotingDashboard = () => {
       document.body.style.top = '';
       document.body.style.width = '';
       document.body.style.overflowY = '';
-      
+
       // Restore scroll position
       if (scrollY) {
         window.scrollTo(0, parseInt(scrollY || '0', 10) * -1);
       }
     }
-    
+
     // Clean up when component unmounts
     return () => {
       document.body.style.position = '';
@@ -126,14 +126,14 @@ const VotingDashboard = () => {
     try {
       setLoading(true);
       const response = await api.post('/fabric/register');
-      
+
       const identityData = response.data.identityFile;
       setIdentityFile(identityData);
-      
+
       if (userId) {
         localStorage.setItem(`blockchain_identity_${userId}`, JSON.stringify(identityData));
       }
-      
+
       setShowDownloadPrompt(true);
       setHasIdentity(true);
       toast.success('Blockchain identity created successfully');
@@ -181,18 +181,18 @@ const VotingDashboard = () => {
     const filename = userId
       ? `blockchain_identity_${userId}.json`
       : `blockchain_identity_${Date.now()}.json`;
-      
+
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
-    
+
     setTimeout(() => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }, 100);
-    
+
     setShowDownloadPrompt(false);
   };
 
@@ -212,16 +212,16 @@ const VotingDashboard = () => {
 
   const fetchUserElections = async () => {
     if (!identityFile) return;
-    
+
     try {
       setFetchingElections(true);
       const response = await api.post('/user/elections', {
         credentials: identityFile
       });
-      
+
       const userElectionData = response.data || [];
       setUserElections(userElectionData);
-      
+
       // Get votes for each election
       const votes = {};
       await Promise.all(
@@ -236,7 +236,7 @@ const VotingDashboard = () => {
           }
         })
       );
-      
+
       setUserVotes(votes);
     } catch (error) {
       console.error('Error fetching user elections:', error);
@@ -264,13 +264,13 @@ const VotingDashboard = () => {
       toast.error('Blockchain identity required to register');
       return;
     }
-    
+
     try {
       setFetchingElections(true);
       await api.post(`/elections/${electionId}/register`, {
         credentials: identityFile
       });
-      
+
       toast.success('Successfully registered for election');
       await fetchUserElections();
       await fetchActiveElections();
@@ -287,40 +287,80 @@ const VotingDashboard = () => {
       toast.error('Blockchain identity required to vote');
       return;
     }
-    
+
     try {
       setVotingInProgress(true);
-      
+
       const election = userElections.find(e => e.electionID === electionId) ||
         activeElections.find(e => e.electionID === electionId);
-        
+
       if (!election) {
         toast.error('Election not found');
         return;
       }
-      
+
       const candidateIndex = election.candidates.findIndex(c => c.candidateID === candidateId);
       if (candidateIndex === -1) {
         toast.error('Selected candidate not found in this election');
         return;
       }
-      
+
+      // 1. Fetch the public key
+      const keyResponse = await api.get(`/publicKey`);
+      const serializedPublicKey = keyResponse.data.publicKey;
+
+      // 2. Import the mind-paillier-voting-sdk
+      const { Voter, deserializePublicKey } = await import('mind-paillier-voting-sdk');
+
+      // 3. Deserialize the public key
+      const publicKey = deserializePublicKey(serializedPublicKey);
+
+      // 4. Create a Voter instance
+      const voter = new Voter(1, publicKey);
+
+      // 5. Create arrays for encrypted ballot and proofs
+      const allProofs = [];
+      const encryptedBallot = [];
+
+      // 6. For each candidate position, encrypt 1 if selected, 0 if not
+      for (let i = 0; i < election.candidates.length; i++) {
+        const bitValue = i === candidateIndex ? 1 : 0;
+        const proofs = voter.encryptNumber(bitValue);
+
+        // Store the encrypted value
+        encryptedBallot.push(proofs[0].c.toString());
+
+        // Store proofs
+        allProofs.push(proofs);
+      }
+
+      // 7. Convert proofs to a string for storage
+      const proofsJson = JSON.stringify(allProofs, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+      );
+
+      // 8. Send the encrypted ballot to the backend
       const response = await api.post(`/elections/${electionId}/vote`, {
-        candidateIndex: candidateIndex,
+        encryptedBallot: encryptedBallot,
+        proofs: proofsJson,
         credentials: identityFile
       });
-      
+      // const response = await api.post(`/elections/${electionId}/vote`, {
+      //   candidateIndex: candidateIndex,
+      //   credentials: identityFile
+      // });
+
       let candidateName = "your selected candidate";
       if (election) {
         const candidate = election.candidates.find(c => c.candidateID === candidateId);
         if (candidate) candidateName = candidate.name;
       }
-      
+
       const txId = response.data?.transactionID;
       const txIdMessage = txId ? `\nTransaction ID: ${txId.substring(0, 10)}...` : '';
       toast.success(`Vote cast successfully for ${candidateName}!${txIdMessage}`);
       setShowVotingModal(false);
-      
+
       await fetchUserElections();
     } catch (error) {
       console.error(`Error casting vote in election ${electionId}:`, error);
@@ -356,7 +396,7 @@ const VotingDashboard = () => {
   return (
     <div className="min-h-[calc(100vh-84px)] bg-gray-50 py-10">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
@@ -371,14 +411,14 @@ const VotingDashboard = () => {
         </motion.div>
         <div className="flex flex-col items-center justify-center">
           {!hasIdentity ? (
-            <IdentitySetup 
+            <IdentitySetup
               isRegisteredButMissingFile={isRegisteredButMissingFile}
               handleIdentityFileUpload={handleIdentityFileUpload}
               registerWithFabric={registerWithFabric}
               loading={loading}
             />
           ) : showDownloadPrompt ? (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4 }}

@@ -202,6 +202,28 @@ class VotingRouter {
                 }
             });
 
+        // Add this to your routes method
+        app.route('/publicKey')
+            .get(async (req, res) => {
+                try {
+                    const keyData = await fs.readFile(keyFilePath, 'utf8');
+                    const keys = JSON.parse(keyData);
+
+                    // Extract serialized keys
+                    const serializedPublicKey = keys.publicKey;
+
+                    res.status(200).send({
+                        publicKey: serializedPublicKey
+                    });
+                } catch (error) {
+                    console.error(`Error fetching public key:`, error);
+                    res.status(500).send({
+                        error: 'Failed to fetch public key',
+                        details: error.message
+                    });
+                }
+            });
+
 
         // =====================================================================
         // USER ROUTES (REQUIRE AUTHENTICATION)
@@ -262,10 +284,10 @@ class VotingRouter {
             .post(verifySession(), async (req, res) => {
                 const voterID = req.session.getUserId();
                 try {
-                    const { candidateIndex, credentials } = req.body;
+                    const { encryptedBallot, proofs, credentials } = req.body;
 
-                    if (candidateIndex === undefined) {
-                        return res.status(400).send({ error: 'candidateIndex is required' });
+                    if (!encryptedBallot || !proofs) {
+                        return res.status(400).send({ error: 'encryptedBallot and proofs are required' });
                     }
 
                     if (!credentials) {
@@ -278,50 +300,13 @@ class VotingRouter {
                     // Get user's Fabric connection
                     const contract = await this.connection.getUserConnection(voterID, credentials);
 
-                    // First, get election to know number of candidates
-                    const electionBytes = await contract.evaluateTransaction(
-                        'GetElection',
-                        req.params.electionID
-                    );
-                    const electionJson = utf8Decoder.decode(electionBytes);
-                    const election = JSON.parse(electionJson);
-
-                    // Get public key
-                    const publicKeyBytes = await contract.evaluateTransaction('GetPublicKey');
-                    const serializedPublicKey = utf8Decoder.decode(publicKeyBytes);
-                    const publicKey = deserializePublicKey(serializedPublicKey);
-
-                    // Use the Voter class to encrypt each bit
-                    const voter = new Voter(1, publicKey);
-
-                    // Create arrays for encrypted ballot and proofs
-                    const allProofs = [];
-                    const encryptedBallot = [];
-
-                    // For each candidate position, encrypt 1 if selected, 0 if not
-                    for (let i = 0; i < election.candidates.length; i++) {
-                        const bitValue = i === parseInt(candidateIndex) ? 1 : 0;
-                        const proofs = voter.encryptNumber(bitValue);
-
-                        // Store the encrypted value
-                        encryptedBallot.push(proofs[0].c.toString());
-
-                        // Store proofs
-                        allProofs.push(proofs);
-                    }
-
-                    // Convert proofs to a string for storage
-                    const proofsJson = JSON.stringify(allProofs, (key, value) =>
-                        typeof value === 'bigint' ? value.toString() : value
-                    );
-
                     // Submit transaction to cast vote with encrypted ballot
                     await contract.submitTransaction(
                         'CastVote',
                         req.params.electionID,
                         voterID,
                         JSON.stringify(encryptedBallot),
-                        proofsJson
+                        proofs
                     );
 
                     res.status(200).send({
@@ -361,6 +346,7 @@ class VotingRouter {
                     }
                 }
             });
+
 
         // Check if user has voted in an election (get user's vote)
         app.route('/elections/:electionID/voted')
