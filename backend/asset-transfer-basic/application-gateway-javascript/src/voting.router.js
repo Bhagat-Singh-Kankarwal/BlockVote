@@ -3,18 +3,12 @@ const { TextDecoder } = require('node:util');
 
 const fs = require('fs').promises;
 const path = require('path');
+const otpService = require('./otp.service');
 
+const supertokens = require('supertokens-node');
 // Read the key file
 const keyFilePath = path.join(__dirname, '../demo.key');
 
-// Import FHE library
-const {
-    Voter,
-    deserializePublicKey,
-    generateKeyPair,
-    serializePublicKey,
-    serializePrivateKey
-} = require('mind-paillier-voting-sdk');
 
 const utf8Decoder = new TextDecoder();
 
@@ -219,6 +213,94 @@ class VotingRouter {
                     console.error(`Error fetching public key:`, error);
                     res.status(500).send({
                         error: 'Failed to fetch public key',
+                        details: error.message
+                    });
+                }
+            });
+
+        // =====================================================================
+        // OTP VERIFICATION ROUTES
+        // =====================================================================
+
+        app.route('/elections/:electionID/request-otp')
+            .post(verifySession(), async (req, res) => {
+                try {
+                    
+                    const userId = await req.session.getUserId();
+                    const userInfo = await supertokens.getUser(userId);
+                    // console.log('User Info:', userInfo);
+                    const email = userInfo.emails[0];
+
+                    if (!email) {
+                        return res.status(400).send({
+                            error: 'Email is required',
+                            details: 'Please provide your email for OTP verification'
+                        });
+                    }
+
+                    // Generate and store OTP
+                    const otp = otpService.storeOtp(userId, email);
+
+                    // const store = otpService.otpStore;
+                    // console.log('Current OTP Store:', store);
+
+                    // Send OTP via email
+                    const emailSent = await otpService.sendOtpEmail(email, otp);
+
+                    if (!emailSent) {
+                        return res.status(500).send({
+                            error: 'Failed to send OTP email',
+                            details: 'There was an issue sending the verification email'
+                        });
+                    }
+
+                    res.status(200).send({
+                        success: true,
+                        message: 'OTP sent to your email',
+                        email: email,
+                        expiresIn: 600
+                    });
+                } catch (error) {
+                    console.error('Error sending OTP:', error);
+                    res.status(500).send({
+                        error: 'Failed to generate OTP',
+                        details: error.message
+                    });
+                }
+            });
+
+        app.route('/elections/:electionID/verify-otp')
+            .post(verifySession(), async (req, res) => {
+                const userId = req.session.getUserId();
+                try {
+                    const { otp } = req.body;
+
+                    if (!otp) {
+                        return res.status(400).send({
+                            error: 'OTP is required',
+                            details: 'Please provide the OTP sent to your email'
+                        });
+                    }
+
+                    // Verify the OTP
+                    const result = otpService.verifyOtp(userId, otp);
+
+                    if (!result.valid) {
+                        return res.status(400).send({
+                            error: 'Invalid OTP',
+                            details: result.message
+                        });
+                    }
+
+                    res.status(200).send({
+                        success: true,
+                        message: 'OTP verified successfully',
+                        verificationComplete: true
+                    });
+                } catch (error) {
+                    console.error('Error verifying OTP:', error);
+                    res.status(500).send({
+                        error: 'Failed to verify OTP',
                         details: error.message
                     });
                 }

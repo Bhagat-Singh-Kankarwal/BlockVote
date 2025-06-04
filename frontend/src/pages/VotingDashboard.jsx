@@ -8,6 +8,7 @@ import IdentitySetup from '../components/dashboard/IdentitySetup';
 import ElectionsContainer from '../components/dashboard/ElectionsContainer';
 import VotingModal from '../components/VotingModal';
 import PublicElectionResults from '../components/PublicElectionResults';
+import OtpVerificationModal from '../components/dashboard/OtpVerificationModal';
 
 const VotingDashboard = () => {
   const sessionContext = useSessionContext();
@@ -31,8 +32,8 @@ const VotingDashboard = () => {
   const [votingInProgress, setVotingInProgress] = useState(false);
   const [selectedCompletedElection, setSelectedCompletedElection] = useState(null);
   const [showResultsModal, setShowResultsModal] = useState(false);
-
-
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [pendingElectionRegistration, setPendingElectionRegistration] = useState(null);
 
   // Initialize user and check identity
   useEffect(() => {
@@ -265,6 +266,20 @@ const VotingDashboard = () => {
       return;
     }
 
+    // Store the election ID and show OTP verification modal
+    setPendingElectionRegistration(
+      activeElections.find(e => e.electionID === electionId)
+    );
+    setShowOtpModal(true);
+  };
+
+  const completeElectionRegistration = async () => {
+    if (!pendingElectionRegistration || !identityFile) {
+      return;
+    }
+
+    const electionId = pendingElectionRegistration.electionID;
+
     try {
       setFetchingElections(true);
       await api.post(`/elections/${electionId}/register`, {
@@ -274,6 +289,9 @@ const VotingDashboard = () => {
       toast.success('Successfully registered for election');
       await fetchUserElections();
       await fetchActiveElections();
+      
+      // Reset the pending registration
+      setPendingElectionRegistration(null);
     } catch (error) {
       console.error(`Error registering for election ${electionId}:`, error);
       toast.error(error.response?.data?.details || 'Failed to register for election');
@@ -500,6 +518,20 @@ const VotingDashboard = () => {
             />
           </div>
         </div>
+      )}
+
+      {showOtpModal && pendingElectionRegistration && (
+        <OtpVerificationModal
+          election={pendingElectionRegistration}
+          onClose={() => {
+            setShowOtpModal(false);
+            setPendingElectionRegistration(null);
+          }}
+          onVerificationComplete={() => {
+            setShowOtpModal(false);
+            completeElectionRegistration();
+          }}
+        />
       )}
     </div>
   );

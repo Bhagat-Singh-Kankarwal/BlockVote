@@ -24,6 +24,7 @@
         "helmet": "^8.1.0",
         "jsonwebtoken": "^9.0.2",
         "mind-paillier-voting-sdk": "^1.0.2",
+        "nodemailer": "^7.0.3",
         "supertokens-node": "^22.0.1"
     },
     "devDependencies": {
